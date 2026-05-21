@@ -1,0 +1,83 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ./packages/backend
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - APP_PORT=3000
+      - DATABASE_URL=mysql://mlbb:mlbb_pass@mariadb:3306/mlbb_counter
+      - REDIS_URL=redis://redis:6379
+      - FRONTEND_URL=http://localhost:3001
+    volumes:
+      - ./packages/backend/src:/app/src
+      - ./packages/backend/prisma:/app/prisma
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./packages/frontend
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3000/v1
+    volumes:
+      - ./packages/frontend/src:/app/src
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  mariadb:
+    image: mariadb:11.4
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_pass
+      - MYSQL_DATABASE=mlbb_counter
+      - MYSQL_USER=mlbb
+      - MYSQL_PASSWORD=mlbb_pass
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mariadb
+
+volumes:
+  mariadb_data:
+  redis_data:

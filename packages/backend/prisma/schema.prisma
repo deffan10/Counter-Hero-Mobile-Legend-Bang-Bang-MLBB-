@@ -1,0 +1,303 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Hero {
+  id          Int       @id @default(autoincrement()) @db.UnsignedInt
+  name        String    @db.VarChar(100)
+  slug        String    @unique @db.VarChar(100)
+  role        HeroRole
+  specialty   String?   @db.VarChar(100)
+  difficulty  Int       @default(1) @db.UnsignedTinyInt
+  imageUrl    String?   @map("image_url") @db.VarChar(500)
+  iconUrl     String?   @map("icon_url") @db.VarChar(500)
+  lore        String?   @db.Text
+  lane        HeroLane?
+  releaseDate DateTime? @map("release_date") @db.Date
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  countersAsHero    HeroCounter[] @relation("HeroCounters")
+  countersAsCounter HeroCounter[] @relation("CounterHeroes")
+  stats             HeroStats[]
+  tierLists         TierList[]
+  builds            HeroBuild[]
+  spellRecs         HeroSpellRec[]
+  comboHeroes       ComboHero[]
+
+  @@index([role])
+  @@index([lane])
+  @@map("heroes")
+}
+
+model HeroCounter {
+  id            Int      @id @default(autoincrement()) @db.UnsignedInt
+  heroId        Int      @map("hero_id") @db.UnsignedInt
+  counterId     Int      @map("counter_id") @db.UnsignedInt
+  effectiveness Int      @default(50) @db.UnsignedTinyInt
+  explanation   String?  @db.Text
+  tips          String?  @db.Text
+  source        String   @default("scraper") @db.VarChar(50)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  hero    Hero @relation("HeroCounters", fields: [heroId], references: [id], onDelete: Cascade)
+  counter Hero @relation("CounterHeroes", fields: [counterId], references: [id], onDelete: Cascade)
+
+  @@unique([heroId, counterId])
+  @@index([effectiveness(sort: Desc)])
+  @@map("hero_counters")
+}
+
+model HeroStats {
+  id           BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  heroId       Int       @map("hero_id") @db.UnsignedInt
+  winrate      Decimal?  @db.Decimal(5, 2)
+  pickrate     Decimal?  @db.Decimal(5, 2)
+  banrate      Decimal?  @db.Decimal(5, 2)
+  rankTier     RankTier  @default(All) @map("rank_tier")
+  patchVersion String?   @map("patch_version") @db.VarChar(20)
+  recordedAt   DateTime  @map("recorded_at") @db.Date
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  hero Hero @relation(fields: [heroId], references: [id], onDelete: Cascade)
+
+  @@index([heroId, recordedAt(sort: Desc)])
+  @@index([rankTier])
+  @@map("hero_stats")
+}
+
+model Item {
+  id                 Int      @id @default(autoincrement()) @db.UnsignedInt
+  name               String   @db.VarChar(100)
+  slug               String   @unique @db.VarChar(100)
+  type               ItemType
+  category           String?  @db.VarChar(50)
+  price              Int      @default(0) @db.UnsignedInt
+  stats              Json?
+  passiveName        String?  @map("passive_name") @db.VarChar(100)
+  passiveDescription String?  @map("passive_description") @db.Text
+  description        String?  @db.Text
+  imageUrl           String?  @map("image_url") @db.VarChar(500)
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  buildItems BuildItem[]
+
+  @@index([type])
+  @@map("items")
+}
+
+model BattleSpell {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  name        String   @db.VarChar(100)
+  slug        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  cooldown    Int?     @db.UnsignedInt
+  unlockLevel Int?     @map("unlock_level") @db.UnsignedTinyInt
+  imageUrl    String?  @map("image_url") @db.VarChar(500)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  heroSpellRecs HeroSpellRec[]
+
+  @@map("battle_spells")
+}
+
+model TierList {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  heroId       Int      @map("hero_id") @db.UnsignedInt
+  tier         Tier
+  rankTier     RankTier @default(All) @map("rank_tier")
+  roleContext  String?  @map("role_context") @db.VarChar(50)
+  patchVersion String?  @map("patch_version") @db.VarChar(20)
+  reasoning    String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  hero Hero @relation(fields: [heroId], references: [id], onDelete: Cascade)
+
+  @@unique([heroId, rankTier, patchVersion])
+  @@index([tier])
+  @@map("tier_lists")
+}
+
+model HeroBuild {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  heroId      Int      @map("hero_id") @db.UnsignedInt
+  buildName   String   @map("build_name") @db.VarChar(200)
+  buildType   String   @map("build_type") @db.VarChar(50)
+  description String?  @db.Text
+  winrate     Decimal? @db.Decimal(5, 2)
+  popularity  Decimal? @db.Decimal(5, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  hero  Hero        @relation(fields: [heroId], references: [id], onDelete: Cascade)
+  items BuildItem[]
+
+  @@map("hero_builds")
+}
+
+model BuildItem {
+  id        Int @id @default(autoincrement()) @db.UnsignedInt
+  buildId   Int @map("build_id") @db.UnsignedInt
+  itemId    Int @map("item_id") @db.UnsignedInt
+  slotOrder Int @map("slot_order") @db.UnsignedTinyInt
+
+  build HeroBuild @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  item  Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("build_items")
+}
+
+model HeroSpellRec {
+  id          Int     @id @default(autoincrement()) @db.UnsignedInt
+  heroId      Int     @map("hero_id") @db.UnsignedInt
+  spellId     Int     @map("spell_id") @db.UnsignedInt
+  priority    Int     @default(1) @db.UnsignedTinyInt
+  explanation String? @db.Text
+  situation   String? @db.VarChar(200)
+
+  hero  Hero        @relation(fields: [heroId], references: [id], onDelete: Cascade)
+  spell BattleSpell @relation(fields: [spellId], references: [id], onDelete: Cascade)
+
+  @@map("hero_spell_recs")
+}
+
+model HeroCombo {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  name         String   @db.VarChar(200)
+  description  String?  @db.Text
+  strategy     String?  @db.Text
+  difficulty   Int      @default(1) @db.UnsignedTinyInt
+  synergyScore Int      @default(50) @map("synergy_score") @db.UnsignedTinyInt
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  heroes ComboHero[]
+
+  @@map("hero_combos")
+}
+
+model ComboHero {
+  id         Int     @id @default(autoincrement()) @db.UnsignedInt
+  comboId    Int     @map("combo_id") @db.UnsignedInt
+  heroId     Int     @map("hero_id") @db.UnsignedInt
+  roleInCombo String? @map("role_in_combo") @db.VarChar(50)
+
+  combo HeroCombo @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  hero  Hero      @relation(fields: [heroId], references: [id], onDelete: Cascade)
+
+  @@map("combo_heroes")
+}
+
+model ScrapeLog {
+  id              BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  source          String       @db.VarChar(100)
+  jobType         String       @map("job_type") @db.VarChar(50)
+  status          ScrapeStatus @default(pending)
+  recordsAffected Int          @default(0) @map("records_affected") @db.UnsignedInt
+  errorMessage    String?      @map("error_message") @db.Text
+  durationMs      Int?         @map("duration_ms") @db.UnsignedInt
+  metadata        Json?
+  startedAt       DateTime?    @map("started_at")
+  completedAt     DateTime?    @map("completed_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([source, createdAt(sort: Desc)])
+  @@map("scrape_logs")
+}
+
+model ApiKey {
+  id          Int       @id @default(autoincrement()) @db.UnsignedInt
+  keyHash     String    @unique @map("key_hash") @db.VarChar(255)
+  name        String    @db.VarChar(100)
+  permissions Json      @default("[\"read\"]")
+  rateLimit   Int       @default(100) @map("rate_limit") @db.UnsignedInt
+  isActive    Boolean   @default(true) @map("is_active")
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("api_keys")
+}
+
+model AdminUser {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  username     String    @unique @db.VarChar(50)
+  email        String    @unique @db.VarChar(200)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  role         AdminRole @default(editor)
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("admin_users")
+}
+
+// Enums
+enum HeroRole {
+  Tank
+  Fighter
+  Assassin
+  Mage
+  Marksman
+  Support
+}
+
+enum HeroLane {
+  Gold
+  Exp
+  Mid
+  Roam
+  Jungle
+}
+
+enum RankTier {
+  All
+  Mythic
+  Legend
+  Epic
+  Grandmaster
+}
+
+enum Tier {
+  S_PLUS @map("S+")
+  S
+  A
+  B
+  C
+  D
+}
+
+enum ItemType {
+  Attack
+  Magic
+  Defense
+  Movement
+  Jungle
+  Roam
+}
+
+enum ScrapeStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+enum AdminRole {
+  superadmin
+  admin
+  editor
+}

@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-mlbb-dark text-white;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-gray-800/60 backdrop-blur border border-gray-700 rounded-xl p-4 hover:border-primary/50 transition-colors;
+  }
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-600 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+  }
+  .tier-badge {
+    @apply inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm;
+  }
+}
